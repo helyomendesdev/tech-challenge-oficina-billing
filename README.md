@@ -1,8 +1,9 @@
 # Oficina Billing — Fase 4
 
-Implementação inicial do participante Billing, no repositório temporário do Lucas.
-Branch de desenvolvimento: `feat/billing-mvp-local`. Destino futuro:
+Implementação inicial do participante Billing no repositório oficial
 `helyomendesdev/tech-challenge-oficina-billing`.
+Os PRs #1 e #2 do temporário foram reunidos em `feat/migracao-billing` para validação
+e integração na main. Consulte o [registro de migração](docs/13-migracao-oficial.md).
 
 ## O que já funciona
 

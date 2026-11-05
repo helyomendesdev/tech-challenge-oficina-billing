@@ -1,3 +1,11 @@
+> Atualização de 05/11/2026: Lucas autorizou transportar os PRs #1 e #2 e integrar
+> o trabalho no Billing oficial. O destino estava vazio e o ensaio de push foi aceito.
+> Referência atual: `helyomendesdev/tech-challenge-oficina-billing`, branch
+> `feat/migracao-billing` durante os checks, main após integração.
+> Consulte [migração oficial](13-migracao-oficial.md) e o PR/Actions do destino para o estado atual.
+> Menções abaixo a 403, destino inalterado e continuidade no temporário são históricas.
+> Esta autorização inclui a integração solicitada; deploy e transações reais continuam fora do escopo.
+
 # Plano de entregas do Lucas
 
 Data base: 05/11/2026. Entregas pequenas, sem substituir trabalho dos outros responsáveis.

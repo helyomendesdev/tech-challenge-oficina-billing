@@ -86,3 +86,12 @@ Commit funcional remoto ebd919fb1826c088c51407d113657ec15f271377,
 Criado docs/12-proximos-passos-e-alinhamentos.md com matriz de responsáveis, perguntas objetivas,
 fontes atuais do provedor e roteiro de sandbox. Atualizados plano, causa HTTP e handoff para refletir
 o código existente. Sem alteração em repo do grupo, segredo, transação real, merge, deploy ou gasto contratado.
+
+## 05/11/2026 — Migração oficial solicitada pelo Lucas
+
+Destino reconferido vazio; permissão push informada e ensaio de envio aceito pelo Git.
+Decidida importação integral do histórico dos dois PRs, preservando commits e autoria.
+Ancestralidade do PR #1 no HEAD do PR #2 e integridade do clone verificadas.
+Publicação via bootstrap original, branch feat/migracao-billing e PR com CI antes do merge.
+Somente documentação de localização/continuidade foi ajustada nesta etapa.
+Fonte: [registro de migração](13-migracao-oficial.md). Nenhum deploy foi solicitado.

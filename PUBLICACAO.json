@@ -79,5 +79,14 @@
     "implementation_pr": "https://github.com/O-marqs/tech-challenge-oficina-billing-temp/pull/2",
     "validated_functional_commit": "ebd919fb1826c088c51407d113657ec15f271377",
     "ci": "https://github.com/O-marqs/tech-challenge-oficina-billing-temp/actions/runs/42120591700"
+  },
+  "migration": {
+    "date": "2026-11-05",
+    "destination": "helyomendesdev/tech-challenge-oficina-billing",
+    "branch": "feat/migracao-billing",
+    "source_head": "e65bd1808997b97ca5ef4162690ed13db1a428a1",
+    "mode": "preserve full history via PR and CI before merge",
+    "record": "docs/13-migracao-oficial.md",
+    "status_reference": "destination pull request and Actions; previous entries are historical"
   }
 }
