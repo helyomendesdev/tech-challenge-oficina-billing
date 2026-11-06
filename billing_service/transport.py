@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+from contextlib import contextmanager
 
 import boto3
 from botocore.config import Config
@@ -23,6 +24,24 @@ def trace_attributes(headers: dict) -> dict:
     if state and len(state) <= 512 and all(32 <= ord(c) <= 126 for c in state):
         result["tracestate"] = {"DataType": "String", "StringValue": state}
     return result
+
+
+@contextmanager
+def background_task(name: str, headers: dict | None = None):
+    """Run the block as a New Relic background transaction; no-op without the agent."""
+    try:
+        import newrelic.agent as agent
+
+        app = agent.application()
+    except Exception:
+        app = None
+    if app is None:
+        yield
+        return
+    with agent.BackgroundTask(app, name=name, group="Message/SQS"):
+        if headers:
+            agent.accept_distributed_trace_headers(headers, transport_type="Queue")
+        yield
 
 
 def sqs_client(settings: Settings):
@@ -72,7 +91,10 @@ class SQSConsumer:
                     k: v.get("StringValue", "")
                     for k, v in item.get("MessageAttributes", {}).items()
                 }
-                self.billing.handle(body, trace_attributes(headers))
+                name = body.get("type") if isinstance(body, dict) else None
+                carried = {k: v for k, v in headers.items() if k in ("traceparent", "tracestate")}
+                with background_task(name or "SQSConsumer", carried):
+                    self.billing.handle(body, trace_attributes(headers))
                 self.client.delete_message(
                     QueueUrl=self.queue_url, ReceiptHandle=item["ReceiptHandle"]
                 )
