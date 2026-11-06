@@ -15,7 +15,7 @@ from billing_service.database import Database
 from billing_service.domain import Observation
 from billing_service.providers import FakeProvider, MercadoPagoOrders
 from billing_service.service import Billing
-from billing_service.transport import SQSConsumer, SQSPublisher, sqs_client
+from billing_service.transport import SQSConsumer, SQSPublisher, background_task, sqs_client
 from billing_service.workers import operation_once, relay_once
 
 
@@ -107,7 +107,8 @@ def main():
         publisher = SQSPublisher(sqs_client(cfg), cfg.queue_os_saga_respostas_url)
 
         def step():
-            return relay_once(db, publisher)
+            with background_task("SQSRelay"):
+                return relay_once(db, publisher)
     else:
 
         def step():

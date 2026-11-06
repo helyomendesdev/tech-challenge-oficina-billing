@@ -103,3 +103,86 @@ def test_trace_survives_approval_and_payment(billing, db, generate):
     while relay_once(db, Publisher()):
         pass
     assert sent == [attrs, attrs, attrs]
+
+
+class FakeAgent:
+    def __init__(self):
+        self.events = []
+
+    def application(self):
+        return "app"
+
+    def BackgroundTask(self, app, name, group):  # noqa: N802 - mirrors the agent API
+        agent = self
+
+        class Task:
+            def __enter__(self):
+                agent.events.append(("enter", app, name, group))
+
+            def __exit__(self, *exc):
+                agent.events.append(("exit",))
+
+        return Task()
+
+    def accept_distributed_trace_headers(self, headers, transport_type):
+        self.events.append(("accept", dict(headers), transport_type))
+
+
+class SpyClient:
+    def __init__(self, message):
+        self.message, self.deleted = message, []
+
+    def receive_message(self, **kwargs):
+        return {"Messages": [self.message]}
+
+    def delete_message(self, **kwargs):
+        self.deleted.append(kwargs)
+
+
+def _message(body, attributes):
+    return {"Body": json.dumps(body), "ReceiptHandle": "r", "MessageAttributes": attributes}
+
+
+def test_consumer_runs_inside_agent_transaction_with_incoming_trace(monkeypatch):
+    import sys
+    import types
+
+    fake = FakeAgent()
+    handled = []
+
+    class Billing:
+        def handle(self, body, attrs):
+            fake.events.append(("handle",))
+            handled.append(attrs)
+
+    module = types.ModuleType("newrelic")
+    module.agent = fake
+    monkeypatch.setitem(sys.modules, "newrelic", module)
+    monkeypatch.setitem(sys.modules, "newrelic.agent", fake)
+    attrs = trace_attributes({"traceparent": TRACE, "tracestate": "v=1"})
+    client = SpyClient(_message({"type": "GerarOrcamento"}, attrs))
+    assert SQSConsumer(client, "q", Billing()).once() == 1
+    assert fake.events == [
+        ("enter", "app", "GerarOrcamento", "Message/SQS"),
+        ("accept", {"traceparent": TRACE, "tracestate": "v=1"}, "Queue"),
+        ("handle",),
+        ("exit",),
+    ]
+    assert handled == [attrs]
+
+
+def test_consumer_without_agent_is_unchanged(monkeypatch):
+    import sys
+
+    monkeypatch.setitem(sys.modules, "newrelic", None)
+    monkeypatch.setitem(sys.modules, "newrelic.agent", None)
+    seen = []
+
+    class Billing:
+        def handle(self, body, attrs):
+            seen.append(attrs)
+
+    attrs = trace_attributes({"traceparent": TRACE})
+    client = SpyClient(_message({"type": "X"}, attrs))
+    assert SQSConsumer(client, "q", Billing()).once() == 1
+    assert seen == [attrs] and len(client.deleted) == 1
