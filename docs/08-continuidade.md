@@ -8,6 +8,21 @@
 
 # Continuidade — estado atual do Billing
 
+## Atualização de 08/11/2026
+
+Referência oficial em `helyomendesdev/tech-challenge-oficina-billing`, main `2e53525` após
+o PR #2 de New Relic. A branch de trabalho `feat/billing-entrega-k8s-sonar` prepara Sonar,
+CD manual de homologação e Compose sandbox. Veja o [README](../README.md) para as chaves
+e o [registro de trabalho](09-registro.md) para validação e publicação. O PR #3 também
+recebe a análise automática do projeto Sonar existente. A importação de cobertura depende
+da troca para análise via CI.
+
+Para o BDD, a Saga já usa a CLI fake do Billing. Faltam integrar os PRs OS #25 e Saga #8
+e confirmar o comando de conclusão/falha da branch Execution. O relay nessa branch já
+trata Decimal. Preserve o catálogo de demo, os dois tokens e a configuração de filas do contrato.
+
+As seções seguintes registram as etapas anteriores à migração e ao New Relic.
+
 Data: 05/11/2026. Repo de trabalho: `O-marqs/tech-challenge-oficina-billing-temp`.
 Branch executável: `feat/billing-mvp-local`; [PR #2 em rascunho](https://github.com/O-marqs/tech-challenge-oficina-billing-temp/pull/2).
 Base documental: `docs/fase4-lucas-planejamento`, PR #1. Nenhum merge ou deploy foi feito.

@@ -1,7 +1,7 @@
 name: Billing CI
 on:
   push:
-    branches: ["feat/**"]
+    branches: [main, "feat/**"]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -32,6 +32,9 @@ jobs:
       AWS_DEFAULT_REGION: us-east-1
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -60,6 +63,36 @@ jobs:
           name: billing-coverage
           path: coverage.xml
           retention-days: 3
+      - name: Check SonarQube Cloud configuration
+        id: sonar-config
+        if: >-
+          github.ref == 'refs/heads/main' ||
+          (github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository)
+        env:
+          SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
+          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          if [[ -z "$SONAR_ORGANIZATION$SONAR_PROJECT_KEY$SONAR_TOKEN" ]]; then
+            echo '::notice::SonarQube Cloud is waiting for repository configuration.'
+            exit 0
+          fi
+          : "${SONAR_ORGANIZATION:?Configure SONAR_ORGANIZATION}"
+          : "${SONAR_PROJECT_KEY:?Configure SONAR_PROJECT_KEY}"
+          : "${SONAR_TOKEN:?Configure SONAR_TOKEN}"
+          echo 'enabled=true' >> "$GITHUB_OUTPUT"
+      - name: Scan Billing and wait for the Sonar quality gate
+        if: steps.sonar-config.outputs.enabled == 'true'
+        uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >-
+            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=180
   container:
     runs-on: ubuntu-latest
     timeout-minutes: 15

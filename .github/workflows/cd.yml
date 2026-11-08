@@ -1,0 +1,126 @@
+name: Billing CD
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: billing-homologacao
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ${{ vars.BILLING_DEPLOY_RUNNER || 'ubuntu-latest' }}
+    environment: homologacao
+    timeout-minutes: 35
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
+      AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+      EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME || secrets.EKS_CLUSTER_NAME }}
+      ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY || secrets.ECR_REPOSITORY || 'oficina-billing' }}
+      NAMESPACE: oficina-billing
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Require successful Billing CI for this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?branch=main&head_sha=$GITHUB_SHA&status=success&per_page=1" --jq '.total_count')"
+          if [[ ! "$runs" =~ ^[1-9][0-9]*$ ]]; then
+            echo '::error::Wait for a successful Billing CI run for this commit.'
+            exit 1
+          fi
+
+      - name: Check deployment configuration
+        env:
+          HAS_LEARNER_LAB_CREDENTIALS: ${{ secrets.AWS_ACCESS_KEY_ID != '' && secrets.AWS_SECRET_ACCESS_KEY != '' && secrets.AWS_SESSION_TOKEN != '' }}
+        run: |
+          set -euo pipefail
+          : "${AWS_REGION:?Configure AWS_REGION}"
+          : "${EKS_CLUSTER_NAME:?Configure EKS_CLUSTER_NAME}"
+          if [[ -z "$AWS_ROLE_ARN" && "$HAS_LEARNER_LAB_CREDENTIALS" != true ]]; then
+            echo '::error::Configure AWS_ROLE_ARN or the three Learner Lab credential secrets.'
+            exit 1
+          fi
+          command -v aws
+          command -v kubectl
+          command -v docker
+          printf 'KUBECONFIG=%s/billing-kubeconfig\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+
+      - name: Configure AWS credentials with OIDC
+        if: env.AWS_ROLE_ARN != ''
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Configure temporary Learner Lab credentials
+        if: env.AWS_ROLE_ARN == ''
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Check the existing EKS environment
+        run: |
+          set -euo pipefail
+          aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION" --kubeconfig "$KUBECONFIG"
+          kubectl -n "$NAMESPACE" get serviceaccount/billing-runtime configmap/billing-config secret/billing-secrets -o name
+          app_env="$(kubectl -n "$NAMESPACE" get configmap billing-config -o 'jsonpath={.data.APP_ENV}')"
+          if [[ "$app_env" != test ]]; then
+            echo '::error::Set APP_ENV=test in billing-config for this deployment.'
+            exit 1
+          fi
+
+      - name: Build and publish the Billing image
+        id: image
+        run: |
+          set -euo pipefail
+          repository="$(aws ecr describe-repositories --repository-names "$ECR_REPOSITORY" --query 'repositories[0].repositoryUri' --output text)"
+          if [[ ! "$repository" =~ ^[a-z0-9.-]+/[a-z0-9._/-]+$ ]]; then
+            echo '::error::ECR did not return a repository URI.'
+            exit 1
+          fi
+          registry="${repository%%/*}"
+          tag="$GITHUB_SHA-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$registry"
+          docker build -t "$repository:$tag" .
+          docker push "$repository:$tag"
+          digest="$(aws ecr describe-images --repository-name "$ECR_REPOSITORY" --image-ids "imageTag=$tag" --query 'imageDetails[0].imageDigest' --output text)"
+          if [[ ! "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo '::error::ECR did not return the digest of the published image.'
+            exit 1
+          fi
+          echo "reference=$repository@$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Migrate the database and roll out Billing
+        env:
+          BILLING_IMAGE: ${{ steps.image.outputs.reference }}
+        run: |
+          set -euo pipefail
+          job="billing-migrate-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          manifests="$(mktemp -d "$RUNNER_TEMP/billing-manifests.XXXXXX")"
+          sed "s|BILLING_IMAGE|$BILLING_IMAGE|g" k8s/workloads.yaml > "$manifests/workloads.yaml"
+          sed -e "s|registry\.invalid/oficina-billing:render-required|$BILLING_IMAGE|" \
+            -e "s|BILLING_MIGRATION_JOB|$job|g" \
+            k8s/migration.yaml > "$manifests/migration.yaml"
+          kubectl -n "$NAMESPACE" apply --dry-run=server -f "$manifests/migration.yaml" -f "$manifests/workloads.yaml"
+          kubectl -n "$NAMESPACE" apply -f "$manifests/migration.yaml"
+          kubectl -n "$NAMESPACE" wait --for=condition=complete "job/$job" --timeout=360s
+          kubectl -n "$NAMESPACE" apply -f "$manifests/workloads.yaml"
+          kubectl -n "$NAMESPACE" rollout status deployment/billing-api --timeout=300s
+          kubectl -n "$NAMESPACE" rollout status deployment/billing-workers --timeout=300s
+          printf 'Billing image: `%s`\nMigration: `%s`\n' "$BILLING_IMAGE" "$job" >> "$GITHUB_STEP_SUMMARY"

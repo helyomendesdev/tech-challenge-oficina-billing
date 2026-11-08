@@ -95,3 +95,64 @@ Ancestralidade do PR #1 no HEAD do PR #2 e integridade do clone verificadas.
 Publicação via bootstrap original, branch feat/migracao-billing e PR com CI antes do merge.
 Somente documentação de localização/continuidade foi ajustada nesta etapa.
 Fonte: [registro de migração](13-migracao-oficial.md). Nenhum deploy foi solicitado.
+
+## 08/11/2026 — Sonar, CD e preparação do sandbox
+
+A base oficial foi conferida no commit `2e5352541310f68346ffd8a4e1df4da845b7cc91`.
+O [CI do Billing](https://github.com/helyomendesdev/tech-challenge-oficina-billing/actions/runs/42255567826)
+mostra 95 testes e 97,07% de cobertura. O PR #2 de New Relic já foi integrado.
+
+O OS já inclui payloads completos e login de funcionário. O driver da Saga usa dois tokens
+e chama a CLI de pagamento fake do Billing. Os PRs OS #25 e Saga #8 ainda estavam abertos
+na conferência. O Execution já serializa Decimal em sua branch e ainda precisa expor o
+comando de conclusão e falha para o BDD. A branch `feat/shared-infrastructure` do repo k8s
+define os ECRs dos serviços e as filas SQS.
+
+A preparação inclui análise Sonar com relatório de cobertura, workflow CD manual para
+homologação, imagem por digest, Job de migração por tentativa e rollout após migração.
+O Compose sandbox separa o banco e as filas do ambiente fake e carrega as chaves de
+um arquivo local protegido. Os passos e parâmetros estão no [README](../README.md).
+
+Validação local com Python 3.12.14:
+- Ruff, formato, Bandit, `uv lock --check --offline` e `git diff --check` passaram.
+- 92 testes passaram com 97,07% de cobertura. Três testes de PostgreSQL exigem banco de teste.
+- A demo fake passou. YAML, scripts Bash e cobertura relativa foram validados.
+- Com comandos simulados, o CD bloqueou CI ausente e falha de migração. A sequência de
+  publicação e rollout passou na simulação. A configuração Sonar foi validada para
+  ausência, preenchimento parcial e preenchimento completo.
+- Sonar remoto, deploy no cluster e compra de teste no provedor aguardam configuração.
+
+Na preparação do patch, a criação da branch via integração GitHub recebeu HTTP 403. As mudanças ficaram na branch
+local `feat/billing-entrega-k8s-sonar`, base com árvore idêntica à main oficial conferida,
+e em um patch para aplicar e publicar pelo acesso Git do Lucas.
+
+
+### Aplicação no Billing oficial
+
+O patch passou em `git apply --check` e foi aplicado com `git apply --index` na
+branch `feat/billing-entrega-k8s-sonar`, criada a partir de `origin/main` em `2e53525`.
+O CD agora exige CI bem-sucedido na própria `main` e define `KUBECONFIG` na etapa
+de configuração. Os workers preservam o entrypoint da imagem para carregar o agente
+New Relic quando houver licença.
+
+- Python 3.11.9: Ruff, formato, Bandit, auditoria de dependências, lockfile e build do wheel passaram.
+- Pytest local: 92 passaram, 3 de PostgreSQL ficaram para o CI e a cobertura foi de 97,07%.
+- `actionlint`, sintaxe Bash, caminhos de cobertura, simulações de Sonar/CD e configuração
+  dos dois projetos Compose passaram. O sandbox foi renderizado com valores fictícios.
+- A demo fake completou o fluxo no Windows e saiu com erro ao limpar o SQLite temporário.
+  PostgreSQL e o fluxo entre containers são verificados no CI. Sonar Cloud, homologação
+  no EKS e transações de teste no provedor dependem da configuração descrita no README.
+
+
+### Correção do Quality Gate no PR #3
+
+No commit `c14f5e6`, a análise automática do SonarCloud classificou a segurança do código
+novo como C, abaixo do mínimo A. O Job de migração recebeu os seis apontamentos. A correção
+desativa a montagem automática do token da API Kubernetes, define recursos de CPU, memória
+e armazenamento efêmero e usa um marcador de imagem versionado que o CD troca pelo digest
+publicado no ECR.
+
+`actionlint`, sintaxe Bash, renderização dos manifests e simulação da migração e do rollout
+passaram. Ruff, Bandit e pytest passaram em Python 3.11.9, com 92 testes aprovados, três de
+PostgreSQL reservados para o CI e cobertura local de 97,07%. A validação no cluster depende
+do ambiente de homologação.
