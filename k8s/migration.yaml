@@ -11,10 +11,12 @@ spec:
     spec:
       restartPolicy: Never
       serviceAccountName: billing-runtime
+      automountServiceAccountToken: false
       securityContext: {runAsNonRoot: true, runAsUser: 10001}
       containers:
         - name: migrate
-          image: BILLING_IMAGE
+          # Billing CD replaces this placeholder with the published ECR digest.
+          image: registry.invalid/oficina-billing:render-required
           command: [python, -m, billing_service.cli, migrate]
           env:
             - name: APP_ENV
@@ -24,4 +26,7 @@ spec:
               valueFrom:
                 secretKeyRef: {name: billing-secrets, key: DATABASE_URL}
           envFrom: [{configMapRef: {name: billing-config}}, {secretRef: {name: billing-secrets}}]
+          resources:
+            requests: {cpu: 100m, memory: 128Mi, ephemeral-storage: 64Mi}
+            limits: {cpu: 500m, memory: 256Mi, ephemeral-storage: 128Mi}
           securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}

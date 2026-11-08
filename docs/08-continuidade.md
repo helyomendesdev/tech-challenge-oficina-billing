@@ -13,7 +13,9 @@
 Referência oficial em `helyomendesdev/tech-challenge-oficina-billing`, main `2e53525` após
 o PR #2 de New Relic. A branch de trabalho `feat/billing-entrega-k8s-sonar` prepara Sonar,
 CD manual de homologação e Compose sandbox. Veja o [README](../README.md) para as chaves
-e o [registro de trabalho](09-registro.md) para validação e publicação.
+e o [registro de trabalho](09-registro.md) para validação e publicação. O PR #3 também
+recebe a análise automática do projeto Sonar existente. A importação de cobertura depende
+da troca para análise via CI.
 
 Para o BDD, a Saga já usa a CLI fake do Billing. Faltam integrar os PRs OS #25 e Saga #8
 e confirmar o comando de conclusão/falha da branch Execution. O relay nessa branch já

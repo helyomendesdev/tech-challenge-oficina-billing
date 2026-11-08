@@ -117,8 +117,11 @@ Não aponte testes para um banco com dados reais.
 
 ## SonarQube Cloud
 
-Cadastre um projeto com análise pelo CI. No GitHub, configure as variáveis
-`SONAR_ORGANIZATION` e `SONAR_PROJECT_KEY` e o secret `SONAR_TOKEN`.
+Use o [projeto Billing existente no SonarQube Cloud](https://sonarcloud.io/dashboard?id=helyomendesdev_tech-challenge-oficina-billing).
+Para importar a cobertura, migre da análise automática para a análise via CI em
+**Administration > Analysis Method**. Coordene a troca com um administrador do projeto.
+No GitHub, configure as variáveis `SONAR_ORGANIZATION` e `SONAR_PROJECT_KEY` e o secret
+`SONAR_TOKEN` para a análise via CI.
 O job `tests` usa `coverage.xml` e aguarda o Quality Gate na main e em PRs do próprio
 repositório. Se os três valores estiverem ausentes, o job informa que a análise ainda
 aguarda configuração. Configuração parcial falha com o nome do item faltante.

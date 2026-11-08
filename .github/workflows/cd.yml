@@ -114,7 +114,8 @@ jobs:
           job="billing-migrate-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           manifests="$(mktemp -d "$RUNNER_TEMP/billing-manifests.XXXXXX")"
           sed "s|BILLING_IMAGE|$BILLING_IMAGE|g" k8s/workloads.yaml > "$manifests/workloads.yaml"
-          sed -e "s|BILLING_IMAGE|$BILLING_IMAGE|g" -e "s|BILLING_MIGRATION_JOB|$job|g" \
+          sed -e "s|registry\.invalid/oficina-billing:render-required|$BILLING_IMAGE|" \
+            -e "s|BILLING_MIGRATION_JOB|$job|g" \
             k8s/migration.yaml > "$manifests/migration.yaml"
           kubectl -n "$NAMESPACE" apply --dry-run=server -f "$manifests/migration.yaml" -f "$manifests/workloads.yaml"
           kubectl -n "$NAMESPACE" apply -f "$manifests/migration.yaml"

@@ -23,7 +23,7 @@ O código está no PR real #2, branch feat/billing-mvp-local.
 | PR-06 | Adapter Orders e webhook com mocks. Compose sandbox preparado. Falta conta, callback HTTPS e teste no provedor. |
 | PR-07 | JWT cliente no Billing. Login de funcionário no OS e dois tokens no driver BDD. |
 | PR-08 | Billing validado em containers. BDD completo depende dos PRs OS #25 e Saga #8 e do comando do Execution. |
-| PR-09 | CI/build no repo oficial. Sonar, CD manual e manifests preparados para review. Execução depende do projeto Sonar e do ambiente de homologação. |
+| PR-09 | CI/build no repo oficial. Sonar, CD manual e manifests preparados para review. Cobertura no Sonar depende da migração do projeto existente para análise via CI. Deploy depende do ambiente de homologação. |
 | PR-10 | Evidências técnicas atualizadas; vídeo/PDF do grupo pendentes |
 
 

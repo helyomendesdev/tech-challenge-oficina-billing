@@ -13,9 +13,10 @@ com as respostas do Luís. Login de funcionário e payloads completos estão na 
 O driver da Saga já usa os dois tokens e a CLI fake. O token de cliente do BDD local é
 assinado com chave de teste. A validação com o emissor Auth real é uma etapa separada.
 
-O CD preparado usa disparo manual em homologação e exige CI do commit. Projeto Sonar,
-configuração AWS, callback HTTPS e credenciais de teste do Mercado Pago continuam como
-dependências. O Terraform de ECR e filas está na branch `feat/shared-infrastructure`
+O CD preparado usa disparo manual em homologação e exige CI do commit. O projeto Sonar
+existente usa análise automática. Para importar a cobertura, falta migrar para análise via
+CI e configurar variáveis e secret no GitHub. Configuração AWS, callback HTTPS e
+credenciais de teste do Mercado Pago continuam como dependências. O Terraform de ECR e filas está na branch `feat/shared-infrastructure`
 do repo k8s. A existência dessa branch não comprova provisionamento.
 
 Lucas autorizou avançar autonomamente em 05/11. P-01/P-02/P-04/P-07 têm escolhas locais reversíveis

@@ -142,3 +142,17 @@ New Relic quando houver licença.
 - A demo fake completou o fluxo no Windows e saiu com erro ao limpar o SQLite temporário.
   PostgreSQL e o fluxo entre containers são verificados no CI. Sonar Cloud, homologação
   no EKS e transações de teste no provedor dependem da configuração descrita no README.
+
+
+### Correção do Quality Gate no PR #3
+
+No commit `c14f5e6`, a análise automática do SonarCloud classificou a segurança do código
+novo como C, abaixo do mínimo A. O Job de migração recebeu os seis apontamentos. A correção
+desativa a montagem automática do token da API Kubernetes, define recursos de CPU, memória
+e armazenamento efêmero e usa um marcador de imagem versionado que o CD troca pelo digest
+publicado no ECR.
+
+`actionlint`, sintaxe Bash, renderização dos manifests e simulação da migração e do rollout
+passaram. Ruff, Bandit e pytest passaram em Python 3.11.9, com 92 testes aprovados, três de
+PostgreSQL reservados para o CI e cobertura local de 97,07%. A validação no cluster depende
+do ambiente de homologação.
