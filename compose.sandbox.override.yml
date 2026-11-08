@@ -1,0 +1,21 @@
+name: oficina-billing-sandbox
+
+x-mercado-pago-env: &mercado-pago-env
+  APP_ENV: test
+  PAYMENT_PROVIDER: mercadopago_test
+  MERCADO_PAGO_ACCESS_TOKEN: ${MERCADO_PAGO_ACCESS_TOKEN:?Set the test access token}
+  MERCADO_PAGO_WEBHOOK_SECRET: ${MERCADO_PAGO_WEBHOOK_SECRET:?Set the test webhook secret}
+  MERCADO_PAGO_NOTIFICATION_URL: ${MERCADO_PAGO_NOTIFICATION_URL:?Set the HTTPS webhook URL}
+  MERCADO_PAGO_RETURN_URL: ${MERCADO_PAGO_RETURN_URL:?Set the HTTPS checkout return URL}
+
+services:
+  api:
+    environment: *mercado-pago-env
+  consumer:
+    environment: *mercado-pago-env
+  operations:
+    environment: *mercado-pago-env
+  relay:
+    environment: *mercado-pago-env
+  migrate:
+    environment: *mercado-pago-env

@@ -1,5 +1,5 @@
-# Render BILLING_IMAGE and existing namespace/ServiceAccount before applying.
-# No cluster, IAM, database or queues are provisioned here.
+# Render BILLING_IMAGE after running the migration Job.
+# The namespace, ServiceAccount, ConfigMap and Secret are managed by the environment.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -19,6 +19,13 @@ spec:
         - name: api
           image: BILLING_IMAGE
           ports: [{containerPort: 8000}]
+          env:
+            - name: APP_ENV
+              valueFrom:
+                configMapKeyRef: {name: billing-config, key: APP_ENV}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: {name: billing-secrets, key: DATABASE_URL}
           envFrom:
             - configMapRef: {name: billing-config}
             - secretRef: {name: billing-secrets}
@@ -60,7 +67,14 @@ spec:
       containers:
         - name: consumer
           image: BILLING_IMAGE
-          command: [python, -m, billing_service.cli, consume]
+          args: [python, -m, billing_service.cli, consume]
+          env: &runtime-env
+            - name: APP_ENV
+              valueFrom:
+                configMapKeyRef: {name: billing-config, key: APP_ENV}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: {name: billing-secrets, key: DATABASE_URL}
           envFrom: [{configMapRef: {name: billing-config}}, {secretRef: {name: billing-secrets}}]
           resources:
             requests: {cpu: 100m, memory: 128Mi}
@@ -68,7 +82,8 @@ spec:
           securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
         - name: operations
           image: BILLING_IMAGE
-          command: [python, -m, billing_service.cli, operations]
+          args: [python, -m, billing_service.cli, operations]
+          env: *runtime-env
           envFrom: [{configMapRef: {name: billing-config}}, {secretRef: {name: billing-secrets}}]
           resources:
             requests: {cpu: 100m, memory: 128Mi}
@@ -76,28 +91,10 @@ spec:
           securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
         - name: relay
           image: BILLING_IMAGE
-          command: [python, -m, billing_service.cli, relay]
+          args: [python, -m, billing_service.cli, relay]
+          env: *runtime-env
           envFrom: [{configMapRef: {name: billing-config}}, {secretRef: {name: billing-secrets}}]
           resources:
             requests: {cpu: 100m, memory: 128Mi}
             limits: {cpu: 500m, memory: 256Mi}
-          securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: billing-migrate
-  namespace: oficina-billing
-spec:
-  backoffLimit: 2
-  template:
-    spec:
-      restartPolicy: Never
-      serviceAccountName: billing-runtime
-      securityContext: {runAsNonRoot: true, runAsUser: 10001}
-      containers:
-        - name: migrate
-          image: BILLING_IMAGE
-          command: [python, -m, billing_service.cli, migrate]
-          envFrom: [{configMapRef: {name: billing-config}}, {secretRef: {name: billing-secrets}}]
           securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}

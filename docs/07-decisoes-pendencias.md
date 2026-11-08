@@ -8,6 +8,16 @@
 
 # Atualização de implementação
 
+Em 08/11/2026, foram reconfirmados catálogo Billing, consulta pela API e correlação HTTP
+com as respostas do Luís. Login de funcionário e payloads completos estão na main do OS.
+O driver da Saga já usa os dois tokens e a CLI fake. O token de cliente do BDD local é
+assinado com chave de teste. A validação com o emissor Auth real é uma etapa separada.
+
+O CD preparado usa disparo manual em homologação e exige CI do commit. Projeto Sonar,
+configuração AWS, callback HTTPS e credenciais de teste do Mercado Pago continuam como
+dependências. O Terraform de ECR e filas está na branch `feat/shared-infrastructure`
+do repo k8s. A existência dessa branch não comprova provisionamento.
+
 Lucas autorizou avançar autonomamente em 05/11. P-01/P-02/P-04/P-07 têm escolhas locais reversíveis
 para o MVP, registradas em docs/11-implementacao.md: catálogo demo configurável, GET do link,
 causa em OrcamentoGerado e rejeição de total zero. Precisam de alinhamento do grupo antes do aceite

@@ -20,10 +20,10 @@ O código está no PR real #2, branch feat/billing-mvp-local.
 | PR-03 | Persistência, inbox/outbox e SQS implementados; PostgreSQL/containers validados no CI |
 | PR-04 | Orçamento e autorização de cliente implementados; catálogo sintético configurável |
 | PR-05 | Fluxo fake explícito, retry, confirmação e compensação implementados e demonstrados |
-| PR-06 | Adapter Orders e webhook com mocks; teste na conta Mercado Pago ainda pendente |
-| PR-07 | JWT cliente implementado; identidade atendente e ajustes Auth/OS pendentes |
-| PR-08 | Billing em containers validado; stack completa do grupo e BDD pendentes |
-| PR-09 | CI/build e templates K8s; sem CD/deploy ou proteção alterada |
+| PR-06 | Adapter Orders e webhook com mocks. Compose sandbox preparado. Falta conta, callback HTTPS e teste no provedor. |
+| PR-07 | JWT cliente no Billing. Login de funcionário no OS e dois tokens no driver BDD. |
+| PR-08 | Billing validado em containers. BDD completo depende dos PRs OS #25 e Saga #8 e do comando do Execution. |
+| PR-09 | CI/build no repo oficial. Sonar, CD manual e manifests preparados para review. Execução depende do projeto Sonar e do ambiente de homologação. |
 | PR-10 | Evidências técnicas atualizadas; vídeo/PDF do grupo pendentes |
 
 
@@ -45,11 +45,10 @@ Não prometer prazo por PR antes de conhecer disponibilidade do Lucas/ambiente e
 
 ## Próxima tarefa executável
 
-O esqueleto e o fluxo Billing já estão implementados no PR real #2. Não recomeçar PR-02.
-Seguir [pendências e roteiro de integração](12-proximos-passos-e-alinhamentos.md): fechar payloads
-OS e identidades com o grupo; configurar a aplicação Mercado Pago de testes e callback HTTPS;
-executar o sandbox e BDD com os serviços. Instrumentação de spans e configuração da entrega
-também continuam pendentes de desenvolvimento. Migrar conforme `10-migracao-github.md`.
+Continuar a partir da main do Billing oficial, com New Relic do PR #2. Publicar a preparação
+de Sonar, CD e Compose sandbox em branch revisável. Confirmar o ambiente com o grupo e seguir
+o [README](../README.md) para configuração. Executar o BDD integrado quando os PRs de outbox
+e o comando do Execution estiverem disponíveis.
 
 ## Verificação funcional que precisa existir
 

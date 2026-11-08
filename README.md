@@ -14,10 +14,12 @@ e integração na main. Consulte o [registro de migração](docs/13-migracao-ofi
 - Intenções de checkout/estorno persistidas, retry com chave estável e reconciliação por CLI.
 - Provedor fake explícito para demonstração e adapter Mercado Pago Checkout Pro Orders,
   coberto por HTTP mocks. Checkout criado nunca confirma pagamento automaticamente.
+- Agente New Relic na API e nos workers. O teste relatado no PR percorreu a abertura
+  da OS até `IniciarExecucao` no mesmo trace. [PR #2](https://github.com/helyomendesdev/tech-challenge-oficina-billing/pull/2)
 
-**Não é uma integração validada com Mercado Pago real, OS ou Execution.** As credenciais,
-callback HTTPS e ajustes registrados no grupo continuam necessários. Perfil atendente
-não foi inventado: nesta versão a API de negócio aceita somente o cliente dono.
+O sandbox do Mercado Pago e a conclusão da Saga com Execution ainda precisam de
+evidência. O atendente faz login no OS. As operações de orçamento no Billing usam o
+token do cliente dono.
 
 ## Experimente em um comando depois de instalar
 
@@ -107,13 +109,53 @@ uv run alembic check
 uv build --wheel
 ```
 
-Resultado local atual: 90 testes passaram, 3 PostgreSQL ficaram SKIP; cobertura 97,38%, incluindo CLI.
-O [CI](https://github.com/O-marqs/tech-challenge-oficina-billing-temp/actions/runs/42120591700)
-comprovou 93 PASS sem SKIP, 97,25% incluindo CLI, PostgreSQL e o fluxo entre containers.
-Resultados mais recentes, CI e limitações em [evidências](docs/11-implementacao.md).
+O commit oficial `2e53525` passou com 95 testes e 97,07% de cobertura, incluindo PostgreSQL
+e o fluxo entre containers. [Evidência do CI](https://github.com/helyomendesdev/tech-challenge-oficina-billing/actions/runs/42255567826)
 Para testar locking/transações reais, use um **banco de teste descartável** em
 `TEST_DATABASE_URL`; a fixture recria as tabelas desse banco. O CI fornece PostgreSQL 16.
 Não aponte testes para um banco com dados reais.
+
+## SonarQube Cloud
+
+Cadastre um projeto com análise pelo CI. No GitHub, configure as variáveis
+`SONAR_ORGANIZATION` e `SONAR_PROJECT_KEY` e o secret `SONAR_TOKEN`.
+O job `tests` usa `coverage.xml` e aguarda o Quality Gate na main e em PRs do próprio
+repositório. Se os três valores estiverem ausentes, o job informa que a análise ainda
+aguarda configuração. Configuração parcial falha com o nome do item faltante.
+
+## Deploy de homologação no Kubernetes
+
+Execute **Billing CD** pelo Actions na `main` quando o ambiente estiver pronto. O workflow
+manual exige sucesso do Billing CI na `main` para o commit selecionado. Ele publica a imagem no ECR,
+usa o digest retornado, executa um Job de migração por tentativa e aguarda os rollouts
+da API e dos workers.
+
+| Local | Configuração |
+|---|---|
+| Variáveis do repositório no GitHub | `AWS_REGION`, `EKS_CLUSTER_NAME` e `ECR_REPOSITORY` se diferente de `oficina-billing`. O runner precisa de acesso à API do cluster e de AWS CLI, Docker, `gh` e `kubectl` compatível. Use `BILLING_DEPLOY_RUNNER` se o grupo precisar indicar um runner. |
+| Secrets do environment | `AWS_ROLE_ARN` para OIDC ou `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` e `AWS_SESSION_TOKEN` temporários do Learner Lab. |
+| Namespace `oficina-billing` | ServiceAccount `billing-runtime` com acesso às filas. O deploy usa ConfigMap `billing-config` e Secret `billing-secrets` existentes. |
+| ConfigMap `billing-config` | `APP_ENV=test`, `PAYMENT_PROVIDER`, `AWS_REGION`, `AUTH_JWT_PUBLIC_KEY_B64` e as duas URLs FIFO do Billing. |
+| Secret `billing-secrets` | `DATABASE_URL` do PostgreSQL com dialeto `postgresql+psycopg`. Para os testes do Mercado Pago, acrescente as credenciais do provedor e configure as URLs HTTPS. Para tracing, forneça `NEW_RELIC_LICENSE_KEY`. |
+
+A infraestrutura do grupo fornece cluster, ECR, banco e filas. Preserve a compatibilidade
+das migrations com os pods que ainda estiverem em execução durante a atualização.
+
+## Sandbox do Mercado Pago
+
+Depois de gerar a chave pública de desenvolvimento e preparar o endereço HTTPS, preencha
+`.env.sandbox` com `AUTH_JWT_PUBLIC_KEY_B64`, `MERCADO_PAGO_ACCESS_TOKEN`,
+`MERCADO_PAGO_WEBHOOK_SECRET`, `MERCADO_PAGO_NOTIFICATION_URL` e `MERCADO_PAGO_RETURN_URL`.
+Cadastre o webhook de teste em `/api/v1/webhooks/mercado-pago` no painel do provedor.
+
+```bash
+docker compose -p oficina-billing-sandbox --env-file .env.sandbox -f compose.yml -f compose.sandbox.override.yml config --quiet
+docker compose -p oficina-billing-sandbox --env-file .env.sandbox -f compose.yml -f compose.sandbox.override.yml up -d --build --wait
+```
+
+O projeto Compose separado isola banco e filas da demonstração fake. Os dois usam as
+portas 8001 e 4566 do host, então execute um ambiente por vez. Siga os cenários de pagamento,
+recusa e estorno no [roteiro de sandbox](docs/12-proximos-passos-e-alinhamentos.md).
 
 ## Integração e limites atuais
 
@@ -129,12 +171,9 @@ o nome do adapter não transforma uma credencial produtiva em credencial de test
 exigem assinatura, conferência do recurso e consulta autenticada ao provedor. A ativação exige
 credenciais e URLs HTTPS em `.env.example`; não foi ativada nesta sessão.
 
-Ainda faltam: prova no ambiente MP, BDD da stack do grupo, integração do atendente, reconciliação
-automática de pagamento tardio/duplicado, exportação de spans New Relic, validação dos workloads
-K8s e CD autorizado. Pagamento tardio gera erro explícito para intervenção, nunca sucesso fabricado.
-
-A implantação não é automática nesta branch; `k8s/workloads.yaml` é um template com imagem,
-namespace, ServiceAccount, ConfigMap e Secret externos, sem provisionar recursos pagos.
+Ainda precisam de evidência o sandbox Mercado Pago, os cenários de conclusão e compensação
+do BDD, o Quality Gate no projeto Sonar e o deploy no EKS. Pagamento tardio gera erro explícito
+para intervenção.
 
 Para revisar a entrega, ver [o que falta e quem resolve](docs/12-proximos-passos-e-alinhamentos.md).
 O documento inclui as perguntas ao grupo e o roteiro de sandbox Mercado Pago. Webhook é
